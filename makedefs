@@ -1,0 +1,318 @@
+# EPOS Makefile Definitions
+
+# Functions
+GETTK		= $(shell sed -n -e '/^.* $(1)[ ]*=.*;.*$$/s/^.* =[ ]*\(.*\)[ ]*;.*$$/\1/p' $(2) | head -1 2> /dev/null)
+DBSEC		= $(1) 0x$(shell objdump -h $(1) | grep $(2) | tr -s ' ' | cut -d ' ' -f 5 2> /dev/null)
+TOLOWER		= $(shell echo $(1) | tr A-Z a-z)
+
+# Paths, prefixes and suffixes
+EPOS		:= $(abspath $(dir $(filter %makedefs, $(MAKEFILE_LIST))))
+TOP		:= $(EPOS)
+INCLUDE		:= $(TOP)/include
+SRC		:= $(TOP)/src
+APP		:= $(TOP)/app
+BIN		:= $(TOP)/bin
+LIB		:= $(TOP)/lib
+IMG		:= $(TOP)/img
+ETC		:= $(TOP)/etc
+TLS		:= $(TOP)/tools
+TST		:= $(TOP)/tests
+LARCHNAME	:= arch
+LMACHNAME	:= mach
+LSYSNAME	:= sys
+LINITNAME	:= init
+LUTILNAME	:= util
+
+# Makefile hacks
+APPLICATIONS	:= $(subst .cc,,$(shell find $(APP) -name \*.cc -printf "%f\n"))
+
+ifeq ($(words $(APPLICATIONS)),1)
+ifndef APPLICATION
+APPLICATION	:= $(word 1, $(APPLICATIONS))
+endif
+else
+PRECLEAN	:= clean1
+endif
+
+ifndef APPLICATION
+ifneq ($(abspath $(dir $(filter %makefile, $(MAKEFILE_LIST)))),$(TOP))
+.PHONY: error
+error:
+		@echo "ERROR: On a multiple applications setup, make must be invoked from $(TOP)!"
+		@exit -1
+endif
+endif
+
+# System configuration
+ifneq ("$(wildcard $(APP)/$(APPLICATION)_traits.h)","")
+TRAITS		= $(APP)/$(APPLICATION)_traits.h
+else
+TRAITS		= $(INCLUDE)/system/traits.h
+endif
+ifeq ($(words $(call GETTK,MEM_BASE,$(TRAITS))),1)
+MACH_TRAITS	= $(TRAITS)
+else
+MACH_TRAITS	= $(INCLUDE)/machine/$(MACH)/$(MMOD)_traits.h
+endif
+ifeq ($(words $(call GETTK,ENDIANESS,$(TRAITS))),1)
+ARCH_TRAITS	= $(TRAITS)
+else
+ARCH_TRAITS	= $(INCLUDE)/architecture/$(ARCH)/traits.h
+endif
+SMOD		= $(call TOLOWER,$(call GETTK,MODE,$(TRAITS)))
+ARCH		= $(call TOLOWER,$(call GETTK,ARCHITECTURE,$(TRAITS)))
+MACH		= $(call TOLOWER,$(call GETTK,MACHINE,$(TRAITS)))
+MMOD		= $(call TOLOWER,$(call GETTK,MODEL,$(TRAITS)))
+CPUS        = $(shell $(BIN)/eposcfg CPUS 2> /dev/null)
+NODES		= $(shell $(BIN)/eposcfg NODES 2> /dev/null)
+STIME		= $(shell $(BIN)/eposcfg EXPECTED_SIMULATION_TIME 2> /dev/null)
+LIBARCH		= $(LIB)/lib$(LARCHNAME)_$(ARCH).a
+LIBMACH		= $(LIB)/lib$(LMACHNAME)_$(ARCH).a
+LIBSYS		= $(LIB)/lib$(LSYSNAME)_$(ARCH).a
+LIBINIT		= $(LIB)/lib$(LINITNAME)_$(ARCH).a
+LIBUTIL		= $(LIB)/lib$(LUTILNAME)_$(ARCH).a
+LARCH		= $(LARCHNAME)_$(ARCH)
+LMACH		= $(LMACHNAME)_$(ARCH)
+LSYS		= $(LSYSNAME)_$(ARCH)
+LINIT		= $(LINITNAME)_$(ARCH)
+LUTIL		= $(LUTILNAME)_$(ARCH)
+
+# Compiler prefixes
+ia32_COMP_PREFIX	:= /usr/local/ia32/gcc-7.2.0/bin/ia32-
+armv7_COMP_PREFIX	:= /usr/local/arm/gcc-7.2.0/bin/arm-
+avr8_COMP_PREFIX	:= /usr/local/avr/gcc-4.4.4/bin/avr-
+COMP_PREFIX		= $($(ARCH)_COMP_PREFIX)
+
+# Boot Memory Map
+MEM_SIZE		= $(shell $(BIN)/eposcfg MEM_SIZE_KB 2> /dev/null)
+BOOT_ADDR               = $(shell $(BIN)/eposcfg BOOT 2> /dev/null)
+SETUP_ADDR              = $(shell $(BIN)/eposcfg SETUP 2> /dev/null)
+INIT_ADDR               = $(shell $(BIN)/eposcfg INIT 2> /dev/null)
+SYS_CODE_ADDR           = $(shell $(BIN)/eposcfg SYS_CODE 2> /dev/null)
+SYS_DATA_ADDR           = $(shell $(BIN)/eposcfg SYS_DATA 2> /dev/null)
+UUID			= $(shell cat /proc/sys/kernel/random/uuid | sed 's/-//g')
+
+#Machine specifics
+pc_CC_FLAGS		:= -Wa,--32 -Wno-builtin-declaration-mismatch -Wno-array-bounds
+pc_AS_FLAGS		:= --32
+pc_LD_FLAGS		:=
+pc_EMULATOR		= qemu-system-i386  -D /tmp/qemu-debug-log -d int,page,mmu,pcall,unimp,cpu_reset,guest_errors -smp $(CPUS) -m $(MEM_SIZE)k -nographic -no-reboot -drive format=raw,index=0,if=floppy,read-only,file=
+pc_DEBUGGER		:= gdb
+pc_FLASHER		:=
+pc_MAGIC		:= --nmagic
+pc_CODE_NAME		:= .init
+pc_DATA_NAME		:= .data
+pc_IMG_SUFFIX		:= .img
+
+cortex_a_CC_FLAGS	:= -mcpu=cortex-a9
+cortex_a_AS_FLAGS	:= -mcpu=cortex-a9
+cortex_a_LD_FLAGS	:=
+ifeq ($(MMOD),zynq)
+cortex_a_EMULATOR	= qemu-system-arm -machine xilinx-zynq-a9  -smp $(CPUS) -m $(MEM_SIZE)k -serial null -serial mon:stdio -nographic -no-reboot -kernel 
+endif
+ifeq ($(MMOD),realview_pbx)
+cortex_a_EMULATOR	= qemu-system-arm -machine realview-pbx-a9 -d guest_errors -smp $(CPUS) -m $(MEM_SIZE)k -serial null -serial mon:stdio -nographic -no-reboot -kernel 
+endif
+cortex_a_DEBUGGER	:= gdb-multiarch
+cortex_a_FLASHER	= $(TLS)/eposflash/eposflash-$(MMOD) -d /dev/ttyACM0 -f
+cortex_a_MAGIC		:= --omagic
+cortex_a_CODE_NAME	:= .init
+cortex_a_DATA_NAME	:=
+cortex_a_IMG_SUFFIX	:= .bin
+
+cortex_m_CC_FLAGS	:= -mcpu=cortex-m3 -mthumb -mabi=atpcs -Wno-builtin-declaration-mismatch -Wno-array-bounds
+cortex_m_AS_FLAGS	:= -mcpu=cortex-m3 -mthumb -meabi=gnu
+cortex_m_LD_FLAGS	:=
+ifeq ($(MMOD),lm3s811)
+cortex_m_EMULATOR	= qemu-system-arm -machine lm3s811evb -m $(MEM_SIZE)k -serial null -serial mon:stdio -nographic -no-reboot -kernel 
+endif
+cortex_m_DEBUGGER	:= arm-none-eabi-gdb
+cortex_m_FLASHER	= $(TLS)/eposflash/eposflash-$(MMOD) -d /dev/ttyACM0 -f
+cortex_m_MAGIC		:= --omagic
+cortex_m_CODE_NAME	:= .init
+cortex_m_DATA_NAME	:= .data
+cortex_m_IMG_SUFFIX	:= .img
+
+atmega_CC_FLAGS		:= -mmcu=atmega128 -Wno-inline
+atmega_AS_FLAGS		:= -mmcu=atmega128
+atmega_LD_FLAGS		:= -m avr5
+atmega_EMULATOR		=
+atmega_DEBUGGER		=
+atmega_FLASHER		= $(TLS)/eposflash/eposflash-$(MMOD)
+atmega_MAGIC		:= --omagic
+atmega_CODE_NAME	:= .init
+atmega_DATA_NAME	:= .data
+atmega_IMG_SUFFIX	:= .hex
+
+ifeq ($(DEBUG),1)
+MACH_CC_FLAGS		:= -g -feliminate-unused-debug-symbols $($(MACH)_CC_FLAGS)
+MACH_AS_FLAGS		:= -g $($(MACH)_AS_FLAGS)
+else
+MACH_CC_FLAGS		:= $($(MACH)_CC_FLAGS)
+MACH_AS_FLAGS		:= $($(MACH)_AS_FLAGS)
+endif
+MACH_LD_FLAGS		:= $($(MACH)_LD_FLAGS)
+MACH_CODE_NAME		:= $($(MACH)_CODE_NAME)
+MACH_DATA_NAME		:= $($(MACH)_DATA_NAME)
+ifeq ($(DEBUG),1)
+MACH_EMULATOR		= $(subst -m ,-gdb tcp::1235 -S -m ,$($(MACH)_EMULATOR))
+else
+MACH_EMULATOR		= $($(MACH)_EMULATOR)
+endif
+MACH_DEBUGGER		= $(TERM) $($(MACH)_DEBUGGER) -ex "target remote:1235" -ex "set confirm off"
+MACH_FLASHER		:= $($(MACH)_FLASHER)
+MACH_MAGIC		= $($(MACH)_MAGIC)
+MACH_IMGSUFF		= $($(MACH)_IMG_SUFFIX)
+
+# Architecture specifics
+ARCH_LITTLE		:= little
+ARCH_BIG		:= big
+ARCH_ENDIANESS		= $(ARCH_$(call GETTK,ENDIANESS,$(ARCH_TRAITS)))
+ARCH_WORD_SIZE		= $(call GETTK,WORD_SIZE,$(ARCH_TRAITS))
+ARCH_CLOCK		= $(call GETTK,CLOCK,$(ARCH_TRAITS))
+
+# Tools and flags to compile system tools
+TCC		:= gcc -ansi -c -Werror
+TCCFLAGS	:= -m32 -Wall -O -I$(INCLUDE)
+
+TCXX		:= g++ -c -ansi -fno-exceptions -std=c++0x
+TCXXFLAGS	:= -m32 -Wall -O -I$(INCLUDE)
+
+TCPP		:= gcc -E
+TCPPFLAGS	:= -I$(INCLUDE)
+
+TLD		:= gcc
+TLDFLAGS	:= -m32
+
+# Tools and flags to compile applications
+ACC		= $(BIN)/eposcc $(MACH_CC_FLAGS) -c -ansi -O
+ACXX		= $(BIN)/eposcc $(MACH_CC_FLAGS) -c -ansi -O
+AF77		= $(BIN)/eposcc $(MACH_CC_FLAGS) -c -ansi -O
+ALD		= $(BIN)/eposcc --$(SMOD) --no-warn-mismatch
+ALDFLAGS	:= --gc-sections $(MACH_MAGIC)
+
+# Tools and flags to compile the system
+AR		= $(COMP_PREFIX)ar
+ARFLAGS		:= rcs
+
+AS		= $(COMP_PREFIX)as
+ASFLAGS		= $(MACH_AS_FLAGS)
+
+CC		= $(COMP_PREFIX)gcc -ansi -c
+CCFLAGS		= $(MACH_CC_FLAGS) -O -nostdinc -Wall -Werror -I$(INCLUDE)
+CCLIB		= `$(CC) $(MACH_CC_FLAGS) -print-file-name=`
+
+CPP		= $(COMP_PREFIX)gcc -E
+CPPFLAGS	= $(MACH_CC_FLAGS) -I$(INCLUDE)
+
+CXX		= $(COMP_PREFIX)g++ -c --no-exceptions --no-rtti --no-use-cxa-atexit
+CXXFLAGS	= $(MACH_CC_FLAGS) -O -nostdinc -Wall -Werror -fdata-sections -ffunction-sections -I$(INCLUDE)
+
+CLEAN		:= rm -f
+CLEANDIR	:= rm -rf
+
+DD		:= dd
+
+DEBUGGER	= $(MACH_DEBUGGER)
+
+EMULATOR	= $(MACH_EMULATOR)
+
+FLASHER 	= $(MACH_FLASHER)
+
+INSTALL		:= install
+
+LD		= $(COMP_PREFIX)ld
+LDFLAGS		= $(MACH_LD_FLAGS) -nostdlib -L$(LIB) -Bstatic
+
+MAKE		:= make --print-directory
+MAKECLEAN	:= make -i clean
+MAKETEST	:= make --no-print-directory --silent
+MAKEFLAGS	:= --no-builtin-rules
+
+MKBI		:= $(BIN)/eposmkbi $(EPOS)
+
+OBJCOPY		= $(COMP_PREFIX)objcopy
+OBJCOPYFLAGS	:= -R .note -R .comment
+
+OBJDUMP		= $(COMP_PREFIX)objdump
+OBJDUMPFLAGS	:=
+
+SHELL		:= bash
+
+STRIP		= $(COMP_PREFIX)strip -R .note -R .comment
+
+TCPDUMP		:= tcpdump -tttttennvvvXXr
+
+TEE		:= tee
+
+TERM		:= xterm -e
+
+TOUCH		:= touch
+
+
+# Rules
+lib%.o: lib%.cc
+		$(CXX) $(CXXFLAGS) $<
+
+%_test_traits.h: %_test.cc
+		$(INSTALL) -m 755 $(INCLUDE)/system/traits.h $@
+
+%_test.o: %_test.cc
+		$(ACXX) $(ACXXFLAGS) $<
+
+%_test.o: %_test.c
+		$(ACC) $(ACCFLAGS) $<
+
+%_test: %_test.o
+		$(ALD) $(ALDFLAGS) $< -o $@
+
+%.o: %.cc
+		$(CXX) $(CXXFLAGS) $<
+
+%.o: %.c
+		$(CC) $(CCFLAGS) $<
+
+%.s: %.S
+		$(CPP) $(CPPFLAGS) $< -o $@
+
+%.o: %.s
+		$(AS) $(ASFLAGS) $< -o $@
+
+%: %.cc
+		$(CXX) $(CXXFLAGS) $<
+		$(LD) $(LDFLAGS) %@.o -o $@
+
+%: %.c
+		$(CC) $(CCFLAGS) $<
+		$(LD) $(LDFLAGS) %@.o -o $@
+
+(%.o): %.o
+		$(AR) $(ARFLAGS) $@ $^
+
+%.img: %
+		$(MKBI) $@ $<
+
+%.hex: %
+		$(OBJCOPY) -I elf32-$(ARCH_ENDIANESS) -O ihex $< $<.tmp
+		$(MKBI) $@ $<.tmp
+		$(CLEAN) $<.tmp
+
+%.bin: %.img
+		$(OBJCOPY) -O binary $< $@
+
+%.out: %.img
+		$(EMULATOR) $< | $(TEE) $@
+
+%.out: %.bin
+		$(EMULATOR) $< | $(TEE) $@
+
+%.net: %.pcap
+		$(TCPDUMP) $< > $@
+
+%.key: %.cc
+		$(EPOSANL) $<
+
+%.key: %.c
+		$(EPOSANL) $<
+
+.PRECIOUS: %.o
