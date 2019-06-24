@@ -232,7 +232,24 @@ class Scheduling_Queue : public Scheduling_List<T>
 };
 
 template <typename T>
+class Scheduling_Queue<T, Scheduling_Criteria::GRR> : public Multihead_Scheduling_List<T>
+{
+};
+template <typename T>
+class Scheduling_Queue<T, Scheduling_Criteria::GHRRN> : public Multihead_Scheduling_List<T>
+{
+};
+
+template <typename T>
 class Scheduling_Queue<T, Scheduling_Criteria::CPU_Affinity> : public Scheduling_Multilist<T>
+{
+};
+template <typename T>
+class Scheduling_Queue<T, Scheduling_Criteria::CPU_Affinity_RR> : public Scheduling_Multilist<T>
+{
+};
+template <typename T>
+class Scheduling_Queue<T, Scheduling_Criteria::CPU_Affinity_HRRN> : public Scheduling_Multilist<T>
 {
 };
 
