@@ -177,9 +177,6 @@ public:
 class CPU_Affinity : public Priority, public Variable_Queue
 {
 public:
-    static const bool timed = false;
-    static const bool dynamic = false;
-    static const bool preemptive = true;
     static const unsigned int QUEUES = Traits<Machine>::CPUS;
 
 public:
@@ -196,9 +193,9 @@ public:
 class CPU_Affinity_HRRN : public HRRN, public Variable_Queue
 {
 public:
-    static const bool timed = false;
+    static const bool timed = true;
     static const bool dynamic = false;
-    static const bool preemptive = true;
+    static const bool preemptive = false;
 
     static const unsigned int QUEUES = Traits<Machine>::CPUS;
 
