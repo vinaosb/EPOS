@@ -223,7 +223,7 @@ struct Traits<System> : public Traits<void>
 template <>
 struct Traits<Thread> : public Traits<void>
 {
-    typedef Scheduling_Criteria::GHRRN Criterion;
+    typedef Scheduling_Criteria::GRR Criterion;
     static const unsigned int QUANTUM = 10000; // us
     static const bool trace_idle = hysterically_debugged;
     static const bool smp = Traits<System>::multicore;
