@@ -2,25 +2,6 @@
 
         .file "armv7_crt0.S"
 
-        // Entry point called by SETUP for microcontrollers
-        .align  2
-        .global _mcu_start
-        .type   _mcu_start, function
-_mcu_start:
-        // Temporary Stack Pointer for INIT
-        // Main's stack will be allocated by Thread::init()  
-        ldr     r0, =__boot_stack__
-        mov     sp, r0
-
-        // Clear the BSS
-        eor     r0, r0
-        ldr     r1, =__bss_start__
-        ldr     r2, =__bss_end__
-.L1:    str     r0, [r1]
-        add     r1, #4
-        cmp     r1, r2
-        blt     .L1
-
         // Entry point called by SETUP for processors
         .section .text
         .align  2
