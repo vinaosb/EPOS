@@ -90,3 +90,5 @@ dkms.conf
 .history
 
 # End of https://www.gitignore.io/api/c,c++,assembler,visualstudiocode
+bin/*
+tools/*
