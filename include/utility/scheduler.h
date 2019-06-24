@@ -177,6 +177,9 @@ public:
 class CPU_Affinity : public Priority, public Variable_Queue
 {
 public:
+    static const bool timed = false;
+    static const bool dynamic = false;
+    static const bool preemptive = true;
     static const unsigned int QUEUES = Traits<Machine>::CPUS;
 
 public:
@@ -189,14 +192,26 @@ public:
     static unsigned int current_queue() { return Machine::cpu_id(); }
 };
 
+// CPU Affinity
+class CPU_Affinity_RR : public RR, public Variable_Queue
+{
+public:
+    static const unsigned int QUEUES = Traits<Machine>::CPUS;
+
+public:
+    template <typename... Tn>
+    CPU_Affinity_RR(int p = NORMAL, int cpu = ANY, Tn &... an)
+        : RR(p), Variable_Queue(((_priority == IDLE) || (_priority == MAIN)) ? Machine::cpu_id() : (cpu != ANY) ? cpu : ++_next_queue %= Machine::n_cpus()) {}
+
+    using Variable_Queue::queue;
+
+    static unsigned int current_queue() { return Machine::cpu_id(); }
+};
+
 // CPU Affinity COM HRRN
 class CPU_Affinity_HRRN : public HRRN, public Variable_Queue
 {
 public:
-    static const bool timed = true;
-    static const bool dynamic = false;
-    static const bool preemptive = false;
-
     static const unsigned int QUEUES = Traits<Machine>::CPUS;
 
 public:

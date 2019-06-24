@@ -151,6 +151,7 @@ class CPU_Affinity;
 class CPU_Affinity_HRRN;
 class HRRN;
 class GHRRN;
+class CPU_Affinity_RR;
 }; // namespace Scheduling_Criteria
 
 __END_UTIL
