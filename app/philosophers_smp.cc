@@ -35,7 +35,7 @@ int main()
     phil[1] = new Thread(&philosopher, 1, 10, 44);
     phil[2] = new Thread(&philosopher, 2, 16, 39);
     phil[3] = new Thread(&philosopher, 3, 16, 21);
-    phil[4] = new Thread(&philosopher, 4, 10, 17);
+    phil[4] = new Thread(&philosopher, 0, 10, 17);
 
     cout << "Philosophers are alive and hungry!" << endl;
 

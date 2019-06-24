@@ -92,3 +92,8 @@ dkms.conf
 # End of https://www.gitignore.io/api/c,c++,assembler,visualstudiocode
 bin/*
 tools/*
+etc/eposcc.conf
+app/philosophers_smp
+etc/eposmkbi.conf
+img/philosophers_smp
+img/philosophers_smp.bin
