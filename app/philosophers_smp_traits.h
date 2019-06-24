@@ -112,7 +112,7 @@ struct Traits<Build> : public Traits<void>
     static const unsigned int ARCHITECTURE = ARMv7;
     static const unsigned int MACHINE = Cortex_A;
     static const unsigned int MODEL = Realview_PBX;
-    static const unsigned int CPUS = 1;
+    static const unsigned int CPUS = 4;
     static const unsigned int NODES = 1; // > 1 => NETWORKING
 };
 
@@ -220,7 +220,7 @@ struct Traits<System> : public Traits<void>
 template <>
 struct Traits<Thread> : public Traits<void>
 {
-    typedef Scheduling_Criteria::RR Criterion;
+    typedef Scheduling_Criteria::GRR Criterion;
     static const unsigned int QUANTUM = 10000; // us
     static const bool trace_idle = hysterically_debugged;
 };

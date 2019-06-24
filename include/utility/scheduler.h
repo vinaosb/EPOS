@@ -127,7 +127,6 @@ public:
     static const bool preemptive = false;
 
 public:
-    HRRN::HRRN(int p);
     HRRN(int p = NORMAL, int d = NORMAL); // Defined at Alarm
     void update();                        // Defined at Alarm
 
@@ -170,7 +169,6 @@ public:
     static const unsigned int HEADS = Traits<Machine>::CPUS;
 
 public:
-    GHRRN(int p = NORMAL) : HRRN(p){};
     GHRRN(int p = NORMAL, int d = NORMAL) : HRRN(p, d){}; // Defined at Alarm
     static unsigned int current_head() { return Machine::cpu_id(); }
 };

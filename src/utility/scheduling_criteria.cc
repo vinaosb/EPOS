@@ -12,7 +12,6 @@ volatile unsigned int Scheduling_Criteria::Variable_Queue::_next_queue;
 namespace Scheduling_Criteria
 {
 FCFS::FCFS(int p) : Priority((p == IDLE) ? IDLE : Alarm::elapsed()) {}
-HRRN::HRRN(int p) : Priority(p), _deadline(NORMAL), _creationTime(Alarm::_elapsed), _createdPriority(p) {}
 HRRN::HRRN(int p, int d) : Priority(p), _deadline(d), _creationTime(Alarm::_elapsed), _createdPriority(p) {}
 void HRRN::update()
 {
