@@ -124,7 +124,7 @@ public:
 
     static const bool timed = true;
     static const bool dynamic = true;
-    static const bool preemptive = false;
+    static const bool preemptive = true;
 
 public:
     HRRN(int p = NORMAL, int d = NORMAL); // Defined at Alarm
