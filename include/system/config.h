@@ -7,15 +7,15 @@
 // ARCHITECTURE, MACHINE, AND APPLICATION SELECTION
 // This section is generated automatically from makedefs by $EPOS/etc/makefile
 //============================================================================
-#define SMOD library
-#define ARCH armv7
-#define MACH cortex_a
-#define MMOD realview_pbx
-#define APPL philosophers_dinner
-#define __mode_library__
-#define __arch_armv7__
-#define __mach_cortex_a__
-#define __mmod_realview_pbx__
+#define SMOD xxx
+#define ARCH xxx
+#define MACH xxx
+#define MMOD xxx
+#define APPL xxx
+#define __mode_xxx__
+#define __arch_xxx__
+#define __mach_xxx__
+#define __mmod_xxx__
 
 //============================================================================
 // NAMESPACES AND DEFINITIONS

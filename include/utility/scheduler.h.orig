@@ -148,9 +148,33 @@ namespace Scheduling_Criteria
 template<typename T, typename R = typename T::Criterion>
 class Scheduling_Queue: public Scheduling_List<T> {};
 
+<<<<<<< HEAD
 template<typename T>
 class Scheduling_Queue<T, Scheduling_Criteria::CPU_Affinity>:
 public Scheduling_Multilist<T> {};
+=======
+template <typename T>
+class Scheduling_Queue<T, Scheduling_Criteria::GRR> : public Multihead_Scheduling_List<T>
+{
+};
+template <typename T>
+class Scheduling_Queue<T, Scheduling_Criteria::GHRRN> : public Multihead_Scheduling_List<T>
+{
+};
+
+template <typename T>
+class Scheduling_Queue<T, Scheduling_Criteria::CPU_Affinity> : public Scheduling_Multilist<T>
+{
+};
+template <typename T>
+class Scheduling_Queue<T, Scheduling_Criteria::CPU_Affinity_RR> : public Scheduling_Multilist<T>
+{
+};
+template <typename T>
+class Scheduling_Queue<T, Scheduling_Criteria::CPU_Affinity_HRRN> : public Scheduling_Multilist<T>
+{
+};
+>>>>>>> 745f8f8d9d3c2d97c75c22f0b770aafd02009bc0
 
 // Scheduler
 // Objects subject to scheduling by Scheduler must declare a type "Criterion"
