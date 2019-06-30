@@ -151,7 +151,7 @@ class RR;
 class FS;
 class CPU_Affinity;
 //===
-class CPU_Affinity_Migration;
+class RR_Migration;
 //===
 }; // namespace Scheduling_Criteria
 

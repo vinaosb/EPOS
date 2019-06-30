@@ -142,26 +142,28 @@ public:
     static unsigned int current_queue() { return Machine::cpu_id(); }
 };
 //============================
-class CPU_Affinity_Migration : public CPU_Affinity
+class RR_Migration : public RR, public Variable_Queue
 {
+    enum
+    {
+        ANY = Variable_Queue::ANY
+    };
+
 public:
-    // CPU_Affinity_Migration(struct CargaCPU cargacpu){
-    //     _carga=&cargacpu};
-    //CPU_Affinity_Migration::_carga=&y
-    struct CargaCPU *_carga;
+    // QUEUES x HEADS must be equal to Traits<Machine>::CPUS
+    static const unsigned int HEADS = 4;
+    static const unsigned int QUEUES = Traits<Machine>::CPUS / HEADS;
+
+public:
+    RR_Migration(int p = APERIODIC)
+        : RR(p), Variable_Queue(((_priority == IDLE) || (_priority == MAIN)) ? current_queue() : 0) {}
+
+    using Variable_Queue::queue;
+
+    static unsigned int current_queue() { return Machine::cpu_id() / HEADS; }
+    static unsigned int current_head() { return Machine::cpu_id() % HEADS; }
 };
-//============================
-} // namespace Scheduling_Criteria
-//===========================
-//declaração de tipo
-struct CargaCPU
-{
-    unsigned int CPU0 = 0;
-    unsigned int CPU1 = 0;
-    unsigned int CPU2 = 0;
-    unsigned int CPU3 = 0;
-};
-//===============================
+
 // Scheduling_Queue
 template <typename T, typename R = typename T::Criterion>
 class Scheduling_Queue : public Scheduling_List<T>
@@ -170,6 +172,12 @@ class Scheduling_Queue : public Scheduling_List<T>
 
 template <typename T>
 class Scheduling_Queue<T, Scheduling_Criteria::CPU_Affinity> : public Scheduling_Multilist<T>
+{
+};
+
+template <typename T>
+    class Scheduling_Queue < T,
+    Scheduling_Criteria::RR_Migration : public Multihead_Scheduling_Multilist<T>
 {
 };
 
