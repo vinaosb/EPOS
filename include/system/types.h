@@ -136,9 +136,6 @@ class Random;
 class Spin;
 class SREC;
 class Vectors;
-//===
-typedef struct CargaCPU Carga;
-//===
 template <unsigned int KEY_SIZE>
 class _AES;
 template <typename>
@@ -149,25 +146,14 @@ class Priority;
 class FCFS;
 class RR;
 class FS;
+class GRR;
 class CPU_Affinity;
-//===
-class RR_Migration;
-//===
+class CPU_Affinity_HRRN;
+class HRRN;
+class GHRRN;
+class CPU_Affinity_RR;
 }; // namespace Scheduling_Criteria
 
-// namespace Scheduling_Criteria
-// {
-
-//     class CPU_Afinity_HRRN,
-//     class  GHRRN,
-//     class GRR,
-//     class  HRRN,
-//     class Priority;
-//     class FCFS;
-//     class RR;
-//     class FS;
-//     class CPU_Affinity;
-// };
 __END_UTIL
 
 __BEGIN_SYS

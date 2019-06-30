@@ -8,7 +8,6 @@
 #include <utility/handler.h>
 #include <utility/scheduler.h>
 #include <machine/timer.h>
-#include <machine/cortex_a/scu.h>//get_cpu_id()
 
 extern "C" { void __exit(); }
 
@@ -35,12 +34,6 @@ protected:
     typedef CPU::Log_Addr Log_Addr;
     typedef CPU::Context Context;
 
-//=====================
-
-     int QueueNumber=get_cpu_id();
-     int getQueueNumber(){return QueueNumber;};
-
-//========================
 public:
     // Thread State
     enum State {
@@ -78,7 +71,6 @@ public:
     typedef Ordered_Queue<Thread, Criterion, Scheduler<Thread>::Element> Queue;
 
 public:
-    int getNumEsc();
     template<typename ... Tn>
     Thread(int (* entry)(Tn ...), Tn ... an);
     template<typename ... Tn>
@@ -139,7 +131,6 @@ protected:
 
 private:
     static void init();
-    
 
 protected:
     char * _stack;
@@ -154,6 +145,7 @@ protected:
     static Scheduler<Thread> _scheduler;
     static Spin _lock;
 };
+
 
 template<typename ... Tn>
 inline Thread::Thread(int (* entry)(Tn ...), Tn ... an)
@@ -188,7 +180,7 @@ private:
 };
 
 
-
+// A Java-like Active Object
 class Active: public Thread
 {
 public:

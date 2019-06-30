@@ -108,6 +108,34 @@ public:
     FCFS(Tn &... an) {}
 };
 
+// Highest Response Ratio Next (HRRN)
+class HRRN : public Priority
+{
+public:
+    typedef RTC::Microsecond Microsecond;
+    enum
+    {
+        MAIN = 0,
+        HIGH = (unsigned(1) << (sizeof(int) * 2 - 1)) - 2,
+        NORMAL = (unsigned(1) << (sizeof(int) * 4 - 1)) - 2,
+        LOW = (unsigned(1) << (sizeof(int) * 6 - 1)) - 2,
+        IDLE = (unsigned(1) << (sizeof(int) * 8 - 1)) - 2
+    };
+
+    static const bool timed = true;
+    static const bool dynamic = true;
+    static const bool preemptive = true;
+
+public:
+    HRRN(int p = NORMAL, int d = NORMAL); // Defined at Alarm
+    void update();                        // Defined at Alarm
+
+protected:
+    Microsecond _deadline;
+    Microsecond _creationTime;
+    int _createdPriority;
+};
+
 // Multicore Algorithms
 class Variable_Queue
 {
@@ -122,6 +150,29 @@ protected:
     static volatile unsigned int _next_queue;
 };
 
+// Global Round-Robin
+class GRR : public RR
+{
+public:
+    static const unsigned int HEADS = Traits<Machine>::CPUS;
+
+public:
+    GRR(int p = NORMAL) : RR(p){};
+
+    static unsigned int current_head() { return Machine::cpu_id(); }
+};
+
+// Global HRRN
+class GHRRN : public HRRN
+{
+public:
+    static const unsigned int HEADS = Traits<Machine>::CPUS;
+
+public:
+    GHRRN(int p = NORMAL, int d = NORMAL) : HRRN(p, d){}; // Defined at Alarm
+    static unsigned int current_head() { return Machine::cpu_id(); }
+};
+
 // CPU Affinity
 class CPU_Affinity : public Priority, public Variable_Queue
 {
@@ -129,7 +180,6 @@ public:
     static const bool timed = false;
     static const bool dynamic = false;
     static const bool preemptive = true;
-
     static const unsigned int QUEUES = Traits<Machine>::CPUS;
 
 public:
@@ -141,28 +191,39 @@ public:
 
     static unsigned int current_queue() { return Machine::cpu_id(); }
 };
-//============================
-class RR_Migration : public RR, public Variable_Queue
+
+// CPU Affinity
+class CPU_Affinity_RR : public RR, public Variable_Queue
 {
-    enum
-    {
-        ANY = Variable_Queue::ANY
-    };
+public:
+    static const unsigned int QUEUES = Traits<Machine>::CPUS;
 
 public:
-    // QUEUES x HEADS must be equal to Traits<Machine>::CPUS
-    static const unsigned int HEADS = 4;
-    static const unsigned int QUEUES = Traits<Machine>::CPUS / HEADS;
-
-public:
-    RR_Migration(int p = APERIODIC)
-        : RR(p), Variable_Queue(((_priority == IDLE) || (_priority == MAIN)) ? current_queue() : 0) {}
+    template <typename... Tn>
+    CPU_Affinity_RR(int p = NORMAL, int cpu = ANY, Tn &... an)
+        : RR(p), Variable_Queue(((_priority == IDLE) || (_priority == MAIN)) ? Machine::cpu_id() : (cpu != ANY) ? cpu : ++_next_queue %= Machine::n_cpus()) {}
 
     using Variable_Queue::queue;
 
-    static unsigned int current_queue() { return Machine::cpu_id() / HEADS; }
-    static unsigned int current_head() { return Machine::cpu_id() % HEADS; }
+    static unsigned int current_queue() { return Machine::cpu_id(); }
 };
+
+// CPU Affinity COM HRRN
+class CPU_Affinity_HRRN : public HRRN, public Variable_Queue
+{
+public:
+    static const unsigned int QUEUES = Traits<Machine>::CPUS;
+
+public:
+    template <typename... Tn>
+    CPU_Affinity_HRRN(int p = NORMAL, int cpu = ANY, Tn &... an)
+        : HRRN(p), Variable_Queue(((_priority == IDLE) || (_priority == MAIN)) ? Machine::cpu_id() : (cpu != ANY) ? cpu : ++_next_queue %= Machine::n_cpus()) {}
+
+    using Variable_Queue::queue;
+
+    static unsigned int current_queue() { return Machine::cpu_id(); }
+};
+} // namespace Scheduling_Criteria
 
 // Scheduling_Queue
 template <typename T, typename R = typename T::Criterion>
@@ -171,13 +232,24 @@ class Scheduling_Queue : public Scheduling_List<T>
 };
 
 template <typename T>
-class Scheduling_Queue<T, Scheduling_Criteria::CPU_Affinity> : public Scheduling_Multilist<T>
+class Scheduling_Queue<T, Scheduling_Criteria::GRR> : public Multihead_Scheduling_List<T>
+{
+};
+template <typename T>
+class Scheduling_Queue<T, Scheduling_Criteria::GHRRN> : public Multihead_Scheduling_List<T>
 {
 };
 
 template <typename T>
-    class Scheduling_Queue < T,
-    Scheduling_Criteria::RR_Migration : public Multihead_Scheduling_Multilist<T>
+class Scheduling_Queue<T, Scheduling_Criteria::CPU_Affinity> : public Scheduling_Multilist<T>
+{
+};
+template <typename T>
+class Scheduling_Queue<T, Scheduling_Criteria::CPU_Affinity_RR> : public Scheduling_Multilist<T>
+{
+};
+template <typename T>
+class Scheduling_Queue<T, Scheduling_Criteria::CPU_Affinity_HRRN> : public Scheduling_Multilist<T>
 {
 };
 
@@ -208,7 +280,7 @@ public:
         // For threads, we assume this won't happen (see Init_First).
         // But if you are unsure about your new use of the scheduler,
         // please, pay the price of the extra "if" bellow.
-        //    	return const_cast<T * volatile>((Base::chosen()) ? Base::chosen()->object() : 0);
+        //      return const_cast<T * volatile>((Base::chosen()) ? Base::chosen()->object() : 0);
         return const_cast<T *volatile>(Base::chosen()->object());
     }
 

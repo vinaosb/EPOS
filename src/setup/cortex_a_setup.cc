@@ -2,8 +2,14 @@
 
 #include <system/config.h>
 #include <machine/cortex_a/scu.h>
+#include <machine/cortex_a/gic.h>
 
 extern "C" { void _vector_table() __attribute__ ((used, naked, section(".init"))); }
+
+// char ttb_address[16*1024] __attribute__((aligned (16*1024)));
+// unsigned ttb_address = EPOS::S::Traits<EPOS::S::Machine>::VECTOR_TABLE;
+// void mmu_config();
+// void cache_config();
 
 // Interrupt Vector Table
 void _vector_table()
@@ -24,14 +30,16 @@ void _vector_table()
 
     __asm("_reset:");
 
-  //create stack for all CPUs
-    __asm("mrc p15, 0, r2, c0, c0, 5");// read CPU ID register into R2
-    __asm("ands r2, r2, #0x03");// mask in only CPUID
-     // set SVC stack
+    // Set a temporary Stack Pointer for INIT
+    // Mains stack will be allocated by Thread::init()
+    // "\n     ldr     r0, =__boot_stack__"
+    // "\n     mov     sp, r0"
+    __asm("mrc p15, 0, r2, c0, c0, 5");
+    __asm("ands r2, r2, #0x03");
     __asm("mov r2, r2, LSL #14");
-    __asm("ldr r0, =__boot_stack__ ");
-    __asm("sub r0, r0, r2");
-    __asm("mov sp, r0");
+    __asm("ldr r1, =__boot_stack__ ");
+    __asm("sub r1, r1, r2");
+    __asm("mov sp, r1");
 
     ASM(
     // 1.MMU, L1$ disable
@@ -206,9 +214,14 @@ void _vector_table()
     // -------------------
     __asm("MRC     p15, 0, r0, c0, c0, 5");     // Read CPU ID register
     __asm("ANDS    r0, r0, #0x03");             // Mask off, leaving the CPU ID field
-    __asm("cmp r0, #0"); 
-     __asm("BNE    secondary_cpus_init"); 
+    __asm("BLEQ    primary_cpu_init");
+    __asm("BLNE    secondary_cpus_init");
 
+    // ------------------------------------------------------------
+    // Initialization for PRIMARY CPU
+    // ------------------------------------------------------------
+    __asm("primary_cpu_init:");
+    //
     // Enable the SCU
     // ---------------
     __asm("BL      enable_scu");
@@ -226,12 +239,15 @@ void _vector_table()
     "\n     blt     .L1"
     "\n");
 
-    __asm("b _start");
+    // __asm("B       __main");
+    __asm("b _mcu_start");
 
     // ------------------------------------------------------------
     // Initialization for SECONDARY CPUs
     // ------------------------------------------------------------
     __asm("secondary_cpus_init:");
+    //
+    // //
     // Join SMP
     // ---------
     __asm("MRC     p15, 0, r0, c0, c0, 5");     // Read CPU ID register
@@ -239,7 +255,9 @@ void _vector_table()
     __asm("MOV     r1, #0xF");                  // Move 0xF (represents all four ways) into r1
     __asm("BL      secure_SCU_invalidate");
     
+  //  __asm("BL      join_smp");
     __asm("BL      enable_maintenance_broadcast");
+
 
     __asm("b _start");
 }

@@ -1,6 +1,7 @@
 // EPOS Cortex-A Mediator Initialization
 
 #include <machine.h>
+#include<machine/cortex_a/gic.h>
 #include<machine/cortex_a/scu.h>
 __BEGIN_SYS
 
@@ -11,8 +12,8 @@ void Machine::pre_init(System_Info * si)
    if(Traits<Build> ::CPUS >= 2){
         smp_init(Traits<Build>::CPUS);
 
-       enable_scu();         
-       join_smp();
+        enable_scu();         
+        join_smp();
         
         int *apAddr = (int *)0x10000030; // SYS_FLAGSSET register
          *apAddr = (int)0x10000;          // all APs execute from 0x10000
