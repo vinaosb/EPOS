@@ -223,6 +223,44 @@ public:
 
     static unsigned int current_queue() { return Machine::cpu_id(); }
 };
+
+// Clustered Earliest Deadline First (multicore)
+class RR_Migrations : public RR, public Variable_Queue
+{
+public:
+    // QUEUES x HEADS must be equal to Traits<Machine>::CPUS
+    static const unsigned int HEADS = 4;
+    static const unsigned int QUEUES = Traits<Machine>::CPUS / HEADS;
+
+public:
+    RR_Migrations(int p = NORMAL)
+        : RR(p), Variable_Queue(((_priority == IDLE) || (_priority == MAIN)) ? current_queue() : 0) {} // Aperiodic
+
+    using Variable_Queue::queue;
+
+    static unsigned int current_queue() { return Machine::cpu_id() / HEADS; }
+    static unsigned int current_head() { return Machine::cpu_id() % HEADS; }
+};
+
+// Clustered Earliest Deadline First (multicore)
+class HRRN_Migrations : public HRRN, public Variable_Queue
+{
+public:
+    // QUEUES x HEADS must be equal to Traits<Machine>::CPUS
+    static const unsigned int HEADS = 4;
+    static const unsigned int QUEUES = Traits<Machine>::CPUS / HEADS;
+
+public:
+    // Se for IDLE ou MAIN nao remove da fila
+    // Se for outra poe na fila 0
+    HRRN_Migrations(int p = NORMAL)
+        : HRRN(p), Variable_Queue(((_priority == IDLE) || (_priority == MAIN)) ? current_queue() : 0) {}
+
+    using Variable_Queue::queue;
+
+    static unsigned int current_queue() { return Machine::cpu_id() / HEADS; }
+    static unsigned int current_head() { return Machine::cpu_id() % HEADS; }
+};
 } // namespace Scheduling_Criteria
 
 // Scheduling_Queue
@@ -250,6 +288,14 @@ class Scheduling_Queue<T, Scheduling_Criteria::CPU_Affinity_RR> : public Schedul
 };
 template <typename T>
 class Scheduling_Queue<T, Scheduling_Criteria::CPU_Affinity_HRRN> : public Scheduling_Multilist<T>
+{
+};
+template <typename T>
+class Scheduling_Queue<T, Scheduling_Criteria::RR_Migrations> : public Multihead_Scheduling_Multilist<T>
+{
+};
+template <typename T>
+class Scheduling_Queue<T, Scheduling_Criteria::HRRN_Migrations> : public Multihead_Scheduling_Multilist<T>
 {
 };
 

@@ -152,6 +152,8 @@ class CPU_Affinity_HRRN;
 class HRRN;
 class GHRRN;
 class CPU_Affinity_RR;
+class RR_Migrations;
+class HRRN_Migrations;
 }; // namespace Scheduling_Criteria
 
 __END_UTIL
